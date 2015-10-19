@@ -1,32 +1,34 @@
 funcprot(0);
 // Fonctions présentes dans ce source :
-// BasculeInter
-// TypeOndelette
 // ChoixOndelette
 // TFCT
-// ModeAffichage
 // AfficherTFD
 // AfficherPerio
 // AfficherTFCT
 // AfficherOndelette
+// ArreterAcq
+// BasculeInter
+// DemarrerAcq
+// FenetrePonderation
+// GestionFMinFMax
 // InitFigure
 // InitFigureMono
 // InitFigureMulti
+// InterfaceIIR
+// InstallMenuPeriph
 // ModeMultiFenetre
-// DemarrerAcq
-// ArreterAcq
-// FenetrePonderation
+// ModeAffichage
 // ParamTFCT
 // ParamPerio
-// GestionFMinFMax
 // SelectPeriph
-// InstallMenuPeriph
+// OuvrirPortCOM
+// LectureDonneeCOM
 // InterfaceSpec
 // NouveauFiltre
 // ArretFiltre
 // ModifFiltre
 // NouveauFiltre
-// InterfaceIIR
+// TypeOndelette
 // ***************************************************************
 //  Définition des fonctions
 // ***************************************************************
@@ -190,7 +192,12 @@ function AfficherTFD()
     z=fft(y.*wTFD);
 //  indTFD est mis à jour par les glissières horizontales.
     title('T.F.D.')
-    plot((indTFD-1)'*Fe/nbEch,abs(z(indTFD)))
+    if size(y,2)>1 then
+        z(1,:)=0;
+        plot((indTFD-1)'*Fe/nbEchReel,abs(z(indTFD,:)))
+    else
+        plot((indTFD-1)'*Fe/nbEchReel,abs(z(indTFD)))
+    end
     xlabel('Hz');
 endfunction
 
@@ -396,7 +403,7 @@ function InitFigureMono()
        if is_handle_valid(fAxe(1))==%F  then
            fAxe(1)=newaxes(); 
            fAxe(1).axes_bounds = [ 0 2/3 1/3 1/3 ];
-           fAxe(1).data_bounds = [0 -1 ; nbEch/Fe 1];
+           fAxe(1).data_bounds = [0 -1 ; nbEchReel/Fe 1];
        end
     else if  is_handle_valid(fAxe(1)) then
            close(fAxe(1));
@@ -526,6 +533,7 @@ function ParamPerio()
     GestionFMinFMax();
 endfunction
 
+
 function GestionFMinFMax()
 //  Fréquence minimale et maximale affichées lors
 //  d'une analyse spectrale
@@ -538,15 +546,15 @@ function GestionFMinFMax()
     hMax = findobj("tag","FMAX");
     hvMin =findobj("tag","vFMIN");
     hvMax = findobj("tag","vFMAX");
-    fMin=fix(hMin.value);
-    fMax=fix(hMax.value);
+    fMin=min(fix(hMin.value),Fe/2);
+    fMax=min(fix(hMax.value),Fe/2);
     hvMin.string=string(hMin.value)+' Hz';
     hvMax.string=string(hMax.value)+' Hz';
     hMin.max=max(0,hMax.value);
     hMin.value=fMin;
     hMax.min=min(Fe/2,hMin.value);
     hMax.value=fMax;
-    f=(0:nbEch-1)*Fe/nbEch;
+    f=(0:nbEchReel-1)*Fe/nbEchReel;
     indTFD=find(f>= fMin & f<=fMax);
     f=(0:larFenetre-1)*Fe/larFenetre;
     indTFCT=find(f>= fMin & f<=fMax);
@@ -558,8 +566,27 @@ function SelectPeriph(nom)
     // Gestion du menu peripherique
     // Le peripherique sélectionné est 
     // marqué avec une croix
+    global indFluxCOM
     global indFluxEntree
     global indFluxSortie
+    global indPeriphCOM
+    global Fe
+    global nbEch
+    disp(nom);
+    for i=0:NbPeripherique()-1
+        tag=['PI'+string(i)];
+        h=findobj('tag',tag);
+        if size(h)~=0
+            h.checked='off';
+        end
+        tag=['PC'+string(i)];
+        h=findobj('tag',tag);
+        if size(h)~=0
+            h.checked='off';
+        end
+        
+    end
+    
     if strcmp(part(nom,1:2),'PI')==0
         j=0;
         for i=0:NbPeripherique()-1
@@ -569,14 +596,65 @@ function SelectPeriph(nom)
                 h=findobj('tag',tag);
                 if strcmp(tag,nom)==0 then
                     h.checked='on';
+                    h=findobj("tag","FE");
+                    Fe=44100;
+                    h.string =string(Fe);
+                    h.enable="on";
                     indFluxEntree=i;
-                else
+                    indFluxCOM=-1;
+               else
                     h.checked='off';
                 end
                 j=j+1;
             end
         end
-    else
+    else if strcmp(part(nom,1:2),'PC')==0
+        j=0;
+        for i=1:size(indPeriphCOM,1)
+            nbe=1;
+            if nbe>0 then
+                tag=['PC'+string(j)];
+                h=findobj('tag',tag);
+                if strcmp(tag,nom)==0 then
+                    h.checked='on';
+                    indFluxEntree=-1;
+                    indFluxCOM=i;
+                    h=findobj("tag","D");
+                    h.string ="60";
+                    D=60;
+                    h=findobj("tag","FE");
+                    h.string ="256";
+                    Fe=256;
+                    h.enable="off";
+                    h=findobj("tag","nbEch");
+                    nbEch=64;
+                    h.string =string(nbEch);
+                    h.enable="off";
+
+                    h=findobj("tag","FMIN");
+                    h.SliderStep=[Fe/100 Fe/10];
+                    h.max=Fe/2;
+                    h.value=0;
+                    h=findobj("tag","vFMIN");
+                    h.value=0;
+                    h=findobj("tag","vFMAX");
+                    h.value=Fe/2;
+                    h=findobj("tag","FMAX");
+                    h.SliderStep=[Fe/100 Fe/10];
+                    h.max=Fe/2;
+                    h.min=0;
+                    h.value=Fe/2;
+
+                    
+                    GestionFMinFMax();
+
+                else
+                    h.checked='off';
+                end
+                j=j+1;
+            end 
+        end
+     else 
         j=0;
         for i=0:NbPeripherique()-1
             nbe=NbSortie(i);
@@ -592,13 +670,16 @@ function SelectPeriph(nom)
                 j=j+1;
             end 
         end
-    end   
+    end  
+    end 
 endfunction
 
 function InstallMenuPeriph(f,interface)
 //  Installation des menus Périphérique d'entrée et périphérique de sortie
     global nomPeriphEntree
     global indPeriphEntree
+    global nomPeriphCOM
+    global indPeriphCOM
     global nomPeriphSortie
     global indPeriphSortie
     
@@ -609,14 +690,19 @@ function InstallMenuPeriph(f,interface)
     indPeriphEntree=[];
     nomPeriphSortie=[];
     indPeriphSortie=[];
+    nomPeriphCOM=[];
+    indPeriphCOM=[];
     delmenu(f.figure_id,"Périphérique Entrée");
     hIn=uimenu(f,"label","Périphérique Entree","tag","PeriphEntree");
+    delmenu(f.figure_id,"Port COM");
+    hCOM=uimenu(f,"label","Port COM","tag","PeriphCOM");
     delmenu(f.figure_id,"Périphérique Sortie");
     if interface==modeIIR
         hOut=uimenu(f,"label","Périphérique Sortie","tag","PeriphSortie");
     end
     jIn=0;
     jOut=0;
+ // Périphériques Audio accessibles par PortAudio
     PrepAcq(1.0,0);
     for i=0:NbPeripherique()-1
         nbe=NbEntree(i);
@@ -645,6 +731,25 @@ function InstallMenuPeriph(f,interface)
             end  
         end  
     end
+ // Périphériques sur port COM
+    if exists('SLLOADERVERSION')
+        jIn=0;
+        for i=1:8
+            slMount(1);
+            if  slCheck(1,i)==1 then 
+                es="COM "+string(i);
+                nomPeriphCOM=[nomPeriphCOM;es];
+                tag=['PC'+string(jIn)];
+                fct=['SelectPeriph(""'+tag+'"")'];
+                m=uimenu(hCOM,'label',es,'callback',fct,'tag',tag);
+                jIn=jIn+1;
+                indPeriphCOM=[indPeriphCOM;i];
+             else
+                 disp(['Com '+string(i)+' n existe pas']);
+             end  
+            slUMount(1);
+        end
+    end
     if jIn==0 then
     	disp("Aucun périphérique d''entrée audio détecté!");
     	disp('Arret du programme conseillé');
@@ -669,7 +774,7 @@ endfunction
 function DemarrerAcq()
 //  Fonction appelée lors d'un clic sur le bouton "DEMARRER"
 //  L'acquisition du signal et les analyses sont appelées à partir de cette fonction
-    global D Fe nbEch;      // Durée du signal fréquence d'échantillonnage nombre d'échantillons affichés
+    global D Fe nbEch nbEchReel;      // Durée du signal fréquence d'échantillonnage nombre d'échantillons affichés
     global y;               // Signal
     global wTFCT wTFD       // Fenetre de pondération
     global larFenetre;      // largeur de la fenêtre de pondération
@@ -677,6 +782,9 @@ function DemarrerAcq()
     global nivMax;          // Niveau max de décomposition de l'ondelette
     global hTpsReel;        // Champ statique Temps-réel
     global beta dp;         // Paramètre de la fenêtre de kaiser et chebycheff
+    global err;             // passe à 2 si bouton stop 
+
+// Le signal peut venir de la carte audio ou du port COM (ECG)
     nbCanaux=2;
     h1=findobj("tag","LARFENETRE");
     h2=findobj("tag","PASFENETRE");
@@ -688,41 +796,79 @@ function DemarrerAcq()
     h=findobj("tag","FE");Fe=evstr(h.string);h.enable="off";
     h=findobj("tag","multiF");h.enable="off";
     h=findobj("tag","listeFCT");fctPond=lFctPond(h.value);h.enable="off";
-    if h.value<=4 then
-        wTFD=window(fctPond,nbEch)';
-        wTFCT=window(fctPond,larFenetre)';   
-    else
-        if h.value==5 then
-            h=findobj("tag","BETA");beta=evstr(h.string);
-            wTFD=window(fctPond,nbEch,beta)';
-            wTFCT=window(fctPond,larFenetre,beta)';
+    if indFluxCOM>0
+        OuvrirPortCOM();
+        nbEchParAcq=nbEch;
+        nbEchReel=D*Fe;
+        N=nbEchReel;
+        y = zeros(nbEchReel,3);
+        if h.value<=4 then
+            wTFD=window(fctPond,nbEchReel)';
+            wTFCT=window(fctPond,larFenetre)';   
+        else
+            if h.value==5 then
+                h=findobj("tag","BETA");beta=evstr(h.string);
+                wTFD=window(fctPond,nbnbEchReelEch,beta)';
+                wTFCT=window(fctPond,larFenetre,beta)';
+            end
+            if h.value==6 then
+                h=findobj("tag","DP");beta=evstr(h.string);
+                wTFD=window(fctPond,nbEchReel,[dp -1])';
+                wTFCT=window(fctPond,larFenetre,[dp -1])';
+            end
         end
-        if h.value==6 then
-            h=findobj("tag","DP");beta=evstr(h.string);
-            wTFD=window(fctPond,nbEch,[dp -1])';
-            wTFCT=window(fctPond,larFenetre,[dp -1])';
+        if length(y)~=length(wTFD) then
+            wTFD=repmat(wTFD,1,size(y,2));
+        end
+   else
+        DefNbCanaux(nbCanaux);
+        DefFreqEch(Fe);
+        N=nbEch;
+        nbEchReel=nbEch;
+        PrepAcq(D,indFluxEntree);
+        OuvrirFlux();
+        DebutAcq();
+        sleep(fix((nbEch*1000)/Fe)+1);
+        [x err index]=LectureDonnee(nbEch);
+        if h.value<=4 then
+            wTFD=window(fctPond,nbEch)';
+            wTFCT=window(fctPond,larFenetre)';   
+        else
+            if h.value==5 then
+                h=findobj("tag","BETA");beta=evstr(h.string);
+                wTFD=window(fctPond,nbEch,beta)';
+                wTFCT=window(fctPond,larFenetre,beta)';
+            end
+            if h.value==6 then
+                h=findobj("tag","DP");beta=evstr(h.string);
+                wTFD=window(fctPond,nbEch,[dp -1])';
+                wTFCT=window(fctPond,larFenetre,[dp -1])';
+            end
         end
     end
-    DefNbCanaux(nbCanaux);
-    DefFreqEch(Fe);
-    PrepAcq(D,indFluxEntree);
-    OuvrirFlux();
-    DebutAcq();
-    sleep(fix((nbEch*1000)/Fe)+1);
-    [x err index]=LectureDonnee(nbEch);
     err=0;
-    N=nbEch;
     if swtInstall==1 then
         nivMax=wmaxlev(N,wname);
     else
         nivMax=0;
     end
     t=(0:N-1)'/Fe;
-    sleep(fix((nbEch*1000)/Fe)+1);
+    if indFluxCOM<0
+        sleep(fix((nbEch*1000)/Fe)+1);
+    end
+    
     while (err==0 )
-        [x err index]=LectureDonnee(nbEch);
+        if indFluxCOM>0
+            disp(nbEchParAcq)
+            [x err index]=LectureDonneeCOM(nbEchParAcq);
+            y(1:$-nbEchParAcq,:)=y(nbEchParAcq+1:$,:);
+            y($-nbEchParAcq+1:$,:)=x';
+    
+        else
+            [x err index]=LectureDonnee(nbEch);
+            y=x(1:1:N)';
+        end
         tic()
-        y=x(1:1:N)';
         if multiFenetre==0 then
             drawlater();
         end
@@ -805,15 +951,18 @@ function DemarrerAcq()
         if multiFenetre==0 then
             drawnow();
         end
-        e=toc();
-        tps=fix((nbEch/Fe-e)*1000);
-// Temps nécessaire pour avoir de nouveaux échantillons
-        if tps>=0
-            hTpsReel.backgroundcolor=[0.1 0.9 0.1];
-            sleep(tps+1);
-        else
-            hTpsReel.backgroundcolor=[0.9 0.1 0.1];
+        if (indFluxCOM<0)
+            e=toc();
+            tps=fix((nbEch/Fe-e)*1000);
+    // Temps nécessaire pour avoir de nouveaux échantillons
+            if tps>=0
+                hTpsReel.backgroundcolor=[0.1 0.9 0.1];
+                sleep(tps+1);
+            else
+                hTpsReel.backgroundcolor=[0.9 0.1 0.1];
+            end
         end
+        
     end
     ArreterAcq();
     FenetrePonderation();
@@ -1084,6 +1233,7 @@ function ModifFiltre(idFiltre)
         gainFiltre(idFiltre)=eval(h.string);
     end
     typef=['lp';'bp';'hp'];
+
     hz=[];
     filtre=[];
     for i=1:nbFiltre
@@ -1179,6 +1329,133 @@ end
 endfunction
 
 //
+// Ouverture du port série
+//
+function OuvrirPortCOM()
+    // mount library on handle "1"
+slMount(1);
+COMPORT=indPeriphCOM(indFluxCOM);
+disp (indPeriphCOM(indFluxCOM))
+disp (COMPORT)
+// handle "1": check availability of specified COM port
+slCheck(1,COMPORT);
+
+// handle "1": configure port
+slConfig(1,57600,8,0,1);
+
+// handle "1": open port
+slOpen(1,COMPORT);
+count=slCount(1);
+slFlush(1);
+FiltreEncoche(50)
+endfunction
+
+
+//
+// Filtre à encoche
+//
+function FiltreEncoche(f0)
+global aEncoche
+global bEncoche    
+global Fe    
+
+fn = Fe/2;              //Frequence de shannon
+freqRatio = f0/fn;      //ratio of notch freq. to Nyquist freq.
+
+tailleEncoche = 0.01;       //Taille Encoche
+
+//Zeros du polynome
+zerosPoly = [exp( %i*%pi*freqRatio ), exp( -%i*%pi*freqRatio )];
+
+//Poles
+poles = (1-tailleEncoche) * zerosPoly;
+
+
+bEncoche = poly( zerosPoly,'s','r' ); // Numérateur
+aEncoche = poly( poles,'s','r' ); // Denominateur
+endfunction
+//
+// Lecture 
+//
+function  [yn,err,pos]=LectureDonneeCOM(nbEch)
+global posEntete
+global bufferSerie
+global aEncoche bEncoche
+global filtreEncohe
+// handle "1": check number of bytes in RX buffer
+if posEntete==-1
+    nbOctet=(nbEch+1)*17;
+    while(slCount(1)<nbOctet)
+        sleep(10);
+    end
+    count=slCount(1);
+    a=slReadArrayN(1, count);
+    entete=%F;
+    pos=1;
+    while (entete==%F)
+        if (a(pos)==165)
+               if(a(pos+1)==90)
+                   if (a(pos+2)==2)
+                       if (a(pos+17)==165 & a(pos+18)==90 & a(pos+19)==2)
+                               entete=%T;
+                       end 
+                   end
+               end
+        end
+        if (entete==%F)
+            pos =pos+1;
+        end
+    end
+    n=nbOctet-pos+1;
+    a(1:pos-1)=[];
+    posEntete=1;
+else
+    disp('nouvelle lecture')
+    nbOctet=(nbEch+1)*17;
+    if size(bufferSerie,2)<nbOctet
+        while(slCount(1)<nbOctet)
+            sleep(10);
+        end
+    
+        count=slCount(1);
+        a=slReadArrayN(1, count);
+        a(1)=[];
+    else
+        a=[]; // Ce n'est pas logique
+    end
+    
+end
+
+
+bufferSerie=[bufferSerie a];
+n = 5+(nbEch-1)*17;
+if filtreEncohe==%t
+    y1=bufferSerie(5:17:n)*256+bufferSerie(6:17:n+1);
+    y2=bufferSerie(7:17:n+2)*256+bufferSerie(8:17:n+3);
+    y3=bufferSerie(9:17:n+4)*256+bufferSerie(10:17:n+5);
+    yn=[filter(bEncoche,aEncoche,y1) ; filter(bEncoche,aEncoche,y2) ;filter(bEncoche,aEncoche,y3)];
+else
+    y1=bufferSerie(5:17:n)*256+bufferSerie(6:17:n+1);
+    y2=bufferSerie(7:17:n+2)*256+bufferSerie(8:17:n+3);
+    y3=bufferSerie(9:17:n+4)*256+bufferSerie(10:17:n+5);
+    yn=[y1;  y2; y3];
+end
+
+bufferSerie(1:nbEch*17)=[];
+disp(["Buffer "]);
+if length(bufferSerie)>17
+    disp(bufferSerie(1:18))
+else
+    disp(bufferSerie);
+end
+
+
+err=0;
+posEntete=1
+pos=posEntete;
+endfunction
+
+//
 // Programme Principal
 // 
 // Variables globales
@@ -1186,6 +1463,7 @@ global fFig // Liste des figures
 global fAxe // Liste des axes
 global multiFenetre // Affichage des analyses dans une ou plusieurs fenêtres
 global paletteAna // Palette de couleur utilisée
+
 global indFluxEntree        // Periphérique audio d'entrée sélectionné
 global indFluxSortie        // Periphérique audio de sortie sélectionné
 global modeAffichage   // Données
@@ -1213,7 +1491,21 @@ global fBasse       // Fréquence basse du filtre i
 global fHaute       // Fréquence haute du filtre i
 global typeFiltre   // Type du filtre i
 
+global indFluxCOM   // Port com utilisé pour ECG
+global indPeriphCOM
+global posEntete    // Position de l'entete série
+global bufferSerie  // buffer série non interprêté
+
+global aEncohe bEncoche    // Filtre à encoche (Notch)
+global filtreEncohe         // activation du filtre à encoche
+global nbEchReel
+
+filtreEncohe=%f;
 nbFiltre=8;
+indFluxCOM=1;
+posEntete=-1;
+bufferSerie=[];
+
 ordre=ones(nbFiltre,1);
 gainFiltre=zeros(nbFiltre,1);
 fBasse=zeros(nbFiltre,1);
@@ -1245,6 +1537,7 @@ nomWv=csvRead(dataRep+'/nomOndelette.txt','\n','.','string');
 indFlux=0;
 modeAffichage=0;
 nbEch=4096;
+nbEchReel=nbEch;
 larFenetreP=fix(nbEch/16);
 pasFenetreP=larFenetreP/4;
 larFenetre=fix(nbEch/16);
@@ -1255,11 +1548,12 @@ D=10;
 wname='db1';
 
 // Mise en place de l'interface sur la figure 1000
-fFig(1:5)=figure(1001);
+fFig(1:5)=scf(1001);
 fAxe(1:5)=newaxes();
-ffInterface=figure(1000);
+ffInterface=scf(1000);
 close(fFig(1));
 indFluxEntree=0;
 indFluxSortie=0;
 InterfaceSpec(ffInterface);
 InstallMenuPeriph(ffInterface,modeSPEC);
+
