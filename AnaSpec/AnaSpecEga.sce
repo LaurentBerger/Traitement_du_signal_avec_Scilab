@@ -1,12 +1,12 @@
 funcprot(0);
 // Fonctions présentes dans ce source :
 // ChoixOndelette
-// TFCT
 // AfficherTFD
 // AfficherPerio
 // AfficherTFCT
 // AfficherOndelette
 // ArreterAcq
+// ArretFiltre
 // BasculeInter
 // DemarrerAcq
 // FenetrePonderation
@@ -16,18 +16,17 @@ funcprot(0);
 // InitFigureMulti
 // InterfaceIIR
 // InstallMenuPeriph
+// InterfaceSpec
+// LectureDonneeCOM
 // ModeMultiFenetre
 // ModeAffichage
+// ModifFiltre
+// NouveauFiltre
+// OuvrirPortCOM
 // ParamTFCT
 // ParamPerio
 // SelectPeriph
-// OuvrirPortCOM
-// LectureDonneeCOM
-// InterfaceSpec
-// NouveauFiltre
-// ArretFiltre
-// ModifFiltre
-// NouveauFiltre
+// TFCT
 // TypeOndelette
 // ***************************************************************
 //  Définition des fonctions
@@ -523,8 +522,8 @@ endfunction
 function ParamPerio()
 //  Gestion des paramètres pour le périodogrammme
 //  largeur de fenêtre pour la TFD et discrétisation de tau
-    global larFenetreP  // largeur de la fenêtre de pondération
-    global pasFenetreP  // pas d'avance de la fenetre
+    global larFenetreP;  // largeur de la fenêtre de pondération
+    global pasFenetreP;  // pas d'avance de la fenetre
     h1=findobj("tag","LARFENETREP");
     h2=findobj("tag","PASFENETREP");
     larFenetreP=evstr(h1.string);
@@ -534,14 +533,15 @@ function ParamPerio()
 endfunction
 
 
+
 function GestionFMinFMax()
 //  Fréquence minimale et maximale affichées lors
 //  d'une analyse spectrale
 
-    global fMin fMax // Fréquence minimale et maximale affichée
-    global indTFD  // Indice associés aux fréquences pour la TFD
-    global indTFCT // Indice associés aux fréquences pour la TFCT
-    global indPERIO // Indice associés aux fréquences pour le periodogramme
+    global fMin fMax; // Fréquence minimale et maximale affichée
+    global indTFD;;  // Indice associés aux fréquences pour la TFD
+    global indTFCT; // Indice associés aux fréquences pour la TFCT
+    global indPERIO; // Indice associés aux fréquences pour le periodogramme
     hMin =findobj("tag","FMIN");
     hMax = findobj("tag","FMAX");
     hvMin =findobj("tag","vFMIN");
@@ -620,7 +620,7 @@ function SelectPeriph(nom)
                     indFluxEntree=-1;
                     indFluxCOM=i;
                     h=findobj("tag","D");
-                    h.string ="60";
+                    h.string ="30";
                     D=60;
                     h=findobj("tag","FE");
                     h.string ="256";
@@ -676,12 +676,12 @@ endfunction
 
 function InstallMenuPeriph(f,interface)
 //  Installation des menus Périphérique d'entrée et périphérique de sortie
-    global nomPeriphEntree
-    global indPeriphEntree
-    global nomPeriphCOM
-    global indPeriphCOM
-    global nomPeriphSortie
-    global indPeriphSortie
+    global nomPeriphEntree;
+    global indPeriphEntree;
+    global nomPeriphCOM;
+    global indPeriphCOM;
+    global nomPeriphSortie;
+    global indPeriphSortie;
     
     scf(f);
     FermerPortAudio();
@@ -984,6 +984,9 @@ function ArreterAcq()
     h.enable="on";
     h=findobj("tag","DEMARRER");h.enable="on";
     h=findobj("tag","multiF");h.enable="on";
+    d=getdate();
+    nom="signal"+string(d(1))+"_"+string(d(2))+"_"+string(d(6))+"_"+string(d(7))+"_"+string(d(8))+"_"+string(d(9));
+    save(nom,y)
 endfunction
 
 function InterfaceSpec(f)
@@ -1256,7 +1259,7 @@ function ModifFiltre(idFiltre)
     plot(fr*44100,hzm)
     xlabel('frequence (Hz)');
     ylabel('Gain');
-    title(['Nombre de coefficients : "+string(length( coeff(filtre.num))+length(coeff(filtre.den)))]);
+    title(["Nombre de coefficients : "+string(length( coeff(filtre.num))+length(coeff(filtre.den)))]);
 endfunction
 
 function InterfaceIIR(ff)
@@ -1451,7 +1454,7 @@ end
 
 
 err=0;
-posEntete=1
+posEntete=1;
 pos=posEntete;
 endfunction
 
@@ -1459,46 +1462,46 @@ endfunction
 // Programme Principal
 // 
 // Variables globales
-global fFig // Liste des figures
-global fAxe // Liste des axes
-global multiFenetre // Affichage des analyses dans une ou plusieurs fenêtres
-global paletteAna // Palette de couleur utilisée
+global fFig; // Liste des figures
+global fAxe; // Liste des axes
+global multiFenetre; // Affichage des analyses dans une ou plusieurs fenêtres
+global paletteAna; // Palette de couleur utilisée
 
-global indFluxEntree        // Periphérique audio d'entrée sélectionné
-global indFluxSortie        // Periphérique audio de sortie sélectionné
-global modeAffichage   // Données
-global D Fe nbEch// Durée du signal fréquence d'échantillonnage
-global fMin fMax // Fréquence minimale et maximale affichée
-global indTFD // Indice associés aux fréquences
-global indTFCT // Indice associés aux fréquences pour la TFCT
-global indPERIO // Indice associés aux fréquences pour le périodogramme
-global larFenetreP  // largeur de la fenêtre de pondération periodogramme
-global pasFenetreP  // pas d'avance de la fenetre
-global y   // Données
-global wTFCT wTFD  // Fenetre de pondération TFCT et TFD
-global larFenetre  // largeur de la fenêtre de pondération
-global pasFenetre  // Discrétisation de tau
-global typeWv nomWv // Tableau des types et noms des ondelettes
-global wname nivMax // Nom de l'ondelette et niveau maximum de décomposition
-global hTpsReel     // Champ statique Temps-réel
-global fctPond      // liste des fonctions de pondération
-global ffInterface  // identifiant de la figure contenant l'interface
+global indFluxEntree;        // Periphérique audio d'entrée sélectionné
+global indFluxSortie;        // Periphérique audio de sortie sélectionné
+global modeAffichage;   // Données
+global D Fe nbEch;// Durée du signal fréquence d'échantillonnage
+global fMin fMax; // Fréquence minimale et maximale affichée
+global indTFD; // Indice associés aux fréquences
+global indTFCT; // Indice associés aux fréquences pour la TFCT
+global indPERIO; // Indice associés aux fréquences pour le périodogramme
+global larFenetreP;  // largeur de la fenêtre de pondération periodogramme
+global pasFenetreP;  // pas d'avance de la fenetre
+global y;   // Données
+global wTFCT wTFD;  // Fenetre de pondération TFCT et TFD
+global larFenetre;  // largeur de la fenêtre de pondération
+global pasFenetre;  // Discrétisation de tau
+global typeWv nomWv; // Tableau des types et noms des ondelettes
+global wname nivMax; // Nom de l'ondelette et niveau maximum de décomposition
+global hTpsReel;     // Champ statique Temps-réel
+global fctPond;      // liste des fonctions de pondération
+global ffInterface;  // identifiant de la figure contenant l'interface
 //
-global filtre       // Filtre somme des filtres
-global gainFiltre   // Gain du filtre
-global ordre        // Ordre du flitre i
-global fBasse       // Fréquence basse du filtre i
-global fHaute       // Fréquence haute du filtre i
-global typeFiltre   // Type du filtre i
+global filtre;       // Filtre somme des filtres
+global gainFiltre;   // Gain du filtre
+global ordre;        // Ordre du flitre i
+global fBasse;       // Fréquence basse du filtre i
+global fHaute;       // Fréquence haute du filtre i
+global typeFiltre;   // Type du filtre i
 
-global indFluxCOM   // Port com utilisé pour ECG
-global indPeriphCOM
-global posEntete    // Position de l'entete série
-global bufferSerie  // buffer série non interprêté
+global indFluxCOM;   // Port com utilisé pour ECG
+global indPeriphCOM;
+global posEntete;    // Position de l'entete série
+global bufferSerie;  // buffer série non interprêté
 
-global aEncohe bEncoche    // Filtre à encoche (Notch)
-global filtreEncohe         // activation du filtre à encoche
-global nbEchReel
+global aEncohe bEncoche;    // Filtre à encoche (Notch)
+global filtreEncohe;         // activation du filtre à encoche
+global nbEchReel;
 
 filtreEncohe=%f;
 nbFiltre=8;
